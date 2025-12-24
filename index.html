@@ -221,6 +221,17 @@
       font-size:12px;
       line-height:1.3;
     }
+    .result .quote{
+      margin-top:6px;
+      font-size:13px;
+      line-height:1.45;
+      color:#ffe9c2;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius:10px;
+      padding:8px 10px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+    }
     .result .tag{
       font-size:12px;
       padding:6px 10px;
@@ -360,6 +371,7 @@
           <div class="pick">
             <b id="pickedName">עדיין לא נבחר פרק</b>
             <small id="pickedMeta">כשתסובב—השם יופיע כאן ✨</small>
+            <div id="pickedQuote" class="quote"></div>
           </div>
           <div class="tag" id="pickedIndex">#—</div>
         </div>
@@ -411,11 +423,11 @@
 
 <script>
 (() => {
-  // ✅ הרשימה כפי שמופיעה בתמונה
-  const chapters = [
+  // ✅ רשימת גיבוי (במקרה שהטעינה מוויקיסורס נכשלת)
+  const fallbackChapters = [
     "אבידה","אהבה","אכילה","אלמן","אמונה","אמת","ארץ ישראל","בגדים","ברשה","בטחון","בית","בכייה","בנים",
     "ברכה","בשורה","גאוה","גניבה וגזילה","דין","דעת","דרך","הוראה","הכנסת אורחים","המתקת דין","הצלחה","הרהורים","הריון",
-    "הרחקת רשעים","הריון","התבודדות","התשאות","ודי דברים","ותרן","זכות אבות","זכירה","זקנים","זריזות","חידושין",
+    "הרחקת רשעים","התבודדות","התשאות","ודי דברים","ותרן","זכות אבות","זכירה","זקנים","זריזות","חידושין",
     "דאורייתא","חיתון","חלום","חן","חנפה","חקירה","טבע","טהרה","טלטול","יחום","יראה","ישועה","כבוד","כישוף","כעס",
     "לימוד","ליצנות","לשון הרע","מוהל","ממון","מסור","מפורסם","מפלת","מריבה","משיח","משקה","נגינה","נדה","נהנה",
     "מאחרים","ניאוף","ניבול פה","נסיון","נפילה","נר תמיד","סגולה","סד","ספירת העומר","ספר","עבירה","עונש","עזות",
@@ -423,6 +435,8 @@
     "קרי","קשיי לידה","ראיה","רחמנות","רפואה","שבועה","שבת","שוחד","שחט","שנאה","שכחות","שלום","שמחה","שרים",
     "תוכחה","תפילה","תשובה"
   ].filter(Boolean);
+
+  const pickedQuote = document.getElementById("pickedQuote");
 
   // --- DOM
   const wheel = document.getElementById("wheel");
@@ -443,12 +457,18 @@
   const soundSel = document.getElementById("soundSel");
   const confetti = document.getElementById("confetti");
 
+  const mediaWikiApi = "https://he.wikisource.org/w/api.php";
+  const mediaWikiPage = "ספר המידות (ברסלב)";
+
   // --- State
-  let items = [...chapters];
+  let items = [...fallbackChapters];
+  let measuresData = fallbackChapters.map(title => ({ title, quotes: [] }));
+  let measureIndex = new Map();
   let history = [];
   let rotation = 0;           // radians
   let spinning = false;
   let lastTickIndex = -1;
+  syncMeasureIndex();
 
   // --- Date / Time (Gregorian + Hebrew via Intl)
   function updateNowBadge(){
@@ -471,6 +491,10 @@
   const TAU = Math.PI * 2;
   const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
   const rand = (a,b)=>a+Math.random()*(b-a);
+  const pickRandom = arr => arr[Math.floor(Math.random()*arr.length)];
+  function syncMeasureIndex(){
+    measureIndex = new Map(measuresData.map(m => [m.title, m]));
+  }
 
   // Simple click sound (no external files)
   const audioCtx = (() => {
@@ -491,13 +515,20 @@
   }
 
   function renderLists(){
-    chaptersList.innerHTML = items.map(x => `<span class="pill">📌 ${escapeHtml(x)}</span>`).join("");
+    chaptersList.innerHTML = items.map(name => {
+      const measure = measureIndex.get(name);
+      const quotesCount = measure?.quotes.length ?? 0;
+      const label = quotesCount ? ` • ${quotesCount} משפטים` : " • ללא ציטוטים";
+      return `<span class="pill" title="נשלף מהויקיסורס">${escapeHtml(name)}${label}</span>`;
+    }).join("");
+
     historyList.innerHTML = history.length
-      ? history.map((h,i)=>`<div style="padding:8px;border-bottom:1px solid rgba(255,255,255,.06)">
+      ? history.map((h)=>`<div style="padding:8px;border-bottom:1px solid rgba(255,255,255,.06)">
             ✅ <b>${escapeHtml(h.name)}</b>
             <div style="color:var(--muted);font-size:12px;margin-top:4px">
               #${String(h.index).padStart(2,"0")} • ${escapeHtml(h.time)}
             </div>
+            ${h.quote ? `<div style="margin-top:6px;font-size:12px;line-height:1.4;color:#ffe9c2;">“${escapeHtml(h.quote)}”</div>` : ""}
           </div>`).join("")
       : `<div style="color:var(--muted);padding:10px">אין עדיין תוצאות — סובב 🎯</div>`;
   }
@@ -509,6 +540,88 @@
       .replaceAll(">","&gt;")
       .replaceAll('"',"&quot;")
       .replaceAll("'","&#039;");
+  }
+  function cleanText(str){
+    return String(str || "").replace(/\s+/g, " ").trim();
+  }
+
+  function pickQuoteFor(title){
+    const measure = measureIndex.get(title);
+    if(!measure || !measure.quotes.length) return null;
+    return pickRandom(measure.quotes);
+  }
+
+  async function fetchWikisourceHtml(){
+    const params = new URLSearchParams({
+      action: "parse",
+      page: mediaWikiPage,
+      prop: "text",
+      format: "json",
+      formatversion: "2",
+      origin: "*"
+    });
+    const res = await fetch(`${mediaWikiApi}?${params.toString()}`);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if(!data?.parse?.text) throw new Error("חסר תוכן ויקיסורס");
+    return data.parse.text;
+  }
+
+  function extractMeasuresFromHtml(html){
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const measures = [];
+    const headlines = Array.from(doc.querySelectorAll(".mw-headline"));
+    for(const headline of headlines){
+      const headingEl = headline.closest("h2, h3, h4, h5, h6");
+      if(!headingEl) continue;
+      const level = Number(headingEl.tagName.replace("H",""));
+      const title = cleanText(headline.textContent);
+      if(!title) continue;
+
+      const quotes = [];
+      let el = headingEl.nextElementSibling;
+      while(el){
+        const tag = el.tagName || "";
+        if(/^H[1-6]$/.test(tag) && Number(tag.slice(1)) <= level) break;
+        if(tag === "UL"){
+          quotes.push(...Array.from(el.querySelectorAll("li")).map(li => cleanText(li.textContent)).filter(Boolean));
+        }
+        el = el.nextElementSibling;
+      }
+      if(quotes.length) measures.push({ title, quotes });
+    }
+
+    // דה-דופליקציה — שומרים את הגרסה עם הכי הרבה משפטים
+    const dedup = new Map();
+    for(const m of measures){
+      const prev = dedup.get(m.title);
+      if(!prev || m.quotes.length > prev.quotes.length){
+        dedup.set(m.title, m);
+      }
+    }
+    return Array.from(dedup.values());
+  }
+
+  async function loadMeasuresFromWiki(){
+    centerTitle.textContent = "טוען מידות מהויקיסורס…";
+    centerSub.textContent = "מביא את הרשימה והמשפטים המדויקים";
+    try{
+      const html = await fetchWikisourceHtml();
+      const parsed = extractMeasuresFromHtml(html);
+      if(!parsed.length) throw new Error("לא נמצאו מידות");
+      measuresData = parsed;
+      items = parsed.map(m => m.title);
+      syncMeasureIndex();
+      resetHistory();
+      drawWheel();
+      renderLists();
+      centerTitle.textContent = "המידות עודכנו מהמקור ✔️";
+      centerSub.textContent = "סובב לקבלת מידה + משפט מהויקיסורס";
+    }catch(err){
+      console.error("Wiki load failed:", err);
+      centerTitle.textContent = "טעינת ויקיסורס נכשלה";
+      centerSub.textContent = "משתמשים ברשימת גיבוי — בדוק חיבור";
+    }
   }
 
   // --- Draw Wheel
@@ -619,15 +732,19 @@
     const name = items[idx];
     const now = new Date();
     const time = new Intl.DateTimeFormat("he-IL", {hour:"2-digit", minute:"2-digit", second:"2-digit"}).format(now);
+    const quote = pickQuoteFor(name);
 
     pickedName.textContent = `🎯 יצא: ${name}`;
-    pickedMeta.textContent = `🧠 עכשיו עובדים על: “${name}” — בלי חפירות, ישר תוכן ✅`;
+    pickedMeta.textContent = quote
+      ? "🧠 משפט מתוך הפרק בויקיסורס:"
+      : "🧠 עכשיו עובדים על הפרק — מחכים לציטוט מהמקור";
+    pickedQuote.textContent = quote ? `“${quote}”` : "";
     pickedIndex.textContent = `#${String(idx+1).padStart(2,"0")}/${items.length}`;
 
     centerTitle.textContent = name;
-    centerSub.textContent = "זה הפרק של היום 🏁";
+    centerSub.textContent = quote ? "משפט בחריצת ויקיסורס 🏁" : "זה הפרק של היום 🏁";
 
-    history.unshift({name, index: idx+1, time});
+    history.unshift({name, index: idx+1, time, quote});
     history = history.slice(0, 24);
     renderLists();
     burstConfetti();
@@ -706,6 +823,7 @@
     history = [];
     pickedName.textContent = "עדיין לא נבחר פרק";
     pickedMeta.textContent = "כשתסובב—השם יופיע כאן ✨";
+    pickedQuote.textContent = "";
     pickedIndex.textContent = "#—";
     centerTitle.textContent = "מוכן לסיבוב";
     centerSub.textContent = "בחר פרק באקראי 🎯";
@@ -747,6 +865,7 @@
   // --- init
   renderLists();
   drawWheel();
+  loadMeasuresFromWiki();
 })();
 </script>
 </body>
