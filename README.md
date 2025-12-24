@@ -774,3 +774,6 @@
 "טוֹב מְעַט בְּצֶדֶק מֵרָב תְּבוּאוֹת בְּלֹא מִשְׁפָּט."
 
 📏 מספר המידות: 7
+
+
+<img width="1766" height="662" alt="image" src="https://github.com/user-attachments/assets/d7467175-c4f5-4f1e-af19-a0bd803d0664" />
