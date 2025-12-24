@@ -1,1 +1,776 @@
-# Dream
+# 🎡 רולטת פרקים מסתובבת — SpinChapters (SC)
+
+```html
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SpinChapters (SC) — רולטת פרקים</title>
+  <style>
+    :root{
+      --bg1:#0b1020; --bg2:#120a2a;
+      --card:#0e1633cc;
+      --text:#eaf0ff;
+      --muted:#a9b7e6;
+      --accent:#7c5cff;
+      --accent2:#25d6a2;
+      --danger:#ff4d6d;
+      --shadow: 0 20px 80px rgba(0,0,0,.45);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Arial, "Noto Sans Hebrew", sans-serif;
+      background:
+        radial-gradient(1200px 700px at 20% 15%, rgba(124,92,255,.25), transparent 55%),
+        radial-gradient(900px 600px at 80% 70%, rgba(37,214,162,.20), transparent 55%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:22px;
+    }
+    .wrap{
+      width:min(1100px, 100%);
+      display:grid;
+      gap:18px;
+      grid-template-columns: 1.15fr .85fr;
+    }
+    @media (max-width: 980px){
+      .wrap{grid-template-columns:1fr}
+    }
+    .panel{
+      background:var(--card);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    header{
+      padding:18px 18px 0 18px;
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:space-between;
+    }
+    .title h1{
+      margin:0;
+      font-size:20px;
+      letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .title p{
+      margin:8px 0 0 0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.4;
+    }
+    .badge{
+      padding:8px 10px;
+      border-radius:999px;
+      background: rgba(124,92,255,.18);
+      border: 1px solid rgba(124,92,255,.35);
+      color:#efeaff;
+      font-size:12px;
+      white-space:nowrap;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .main{
+      padding:18px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:14px;
+    }
+
+    /* Wheel */
+    .wheelStage{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:12px 0 4px 0;
+    }
+    .wheelBox{
+      width:min(520px, 90vw);
+      aspect-ratio:1/1;
+      position:relative;
+      filter: drop-shadow(0 18px 45px rgba(0,0,0,.35));
+    }
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+      border-radius:999px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.08), transparent 55%);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .pointer{
+      position:absolute;
+      top:-10px;
+      left:50%;
+      transform:translateX(-50%);
+      width:0;height:0;
+      border-left:18px solid transparent;
+      border-right:18px solid transparent;
+      border-bottom:32px solid #ffe08a;
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
+    }
+    .pointer::after{
+      content:"";
+      position:absolute;
+      top:28px;
+      left:-8px;
+      width:16px;
+      height:16px;
+      background:#ffe08a;
+      border-radius:50%;
+      box-shadow: 0 8px 20px rgba(0,0,0,.35);
+    }
+    .centerCap{
+      position:absolute;
+      inset:50% auto auto 50%;
+      transform:translate(-50%,-50%);
+      width:118px;height:118px;
+      border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.20), rgba(124,92,255,.18) 45%, rgba(0,0,0,.15) 100%);
+      border: 1px solid rgba(255,255,255,.16);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:12px;
+      box-shadow: inset 0 0 0 10px rgba(0,0,0,.08);
+      pointer-events:none;
+    }
+    .centerCap strong{
+      display:block;
+      font-size:13px;
+      line-height:1.15;
+    }
+    .centerCap span{
+      display:block;
+      margin-top:6px;
+      font-size:11px;
+      color:var(--muted);
+    }
+
+    /* Controls */
+    .controls{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:8px;
+    }
+    button{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      border-radius:14px;
+      padding:12px 12px;
+      font-weight:700;
+      font-size:14px;
+      color: #061022;
+      background: linear-gradient(135deg, #ffe08a, #ffb86b);
+      box-shadow: 0 12px 30px rgba(255,200,120,.18);
+      transition: transform .08s ease, filter .15s ease;
+    }
+    button:active{transform: translateY(1px) scale(.99)}
+    button.secondary{
+      color:var(--text);
+      background: linear-gradient(135deg, rgba(124,92,255,.95), rgba(37,214,162,.75));
+      box-shadow: 0 12px 30px rgba(124,92,255,.18);
+    }
+    button.ghost{
+      color:var(--text);
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow:none;
+    }
+    button.danger{
+      color:#fff;
+      background: linear-gradient(135deg, rgba(255,77,109,.95), rgba(255,168,186,.65));
+      box-shadow: 0 12px 30px rgba(255,77,109,.14);
+    }
+    button:disabled{opacity:.6; cursor:not-allowed}
+
+    .result{
+      margin-top:10px;
+      padding:12px 12px;
+      border-radius:14px;
+      background: rgba(0,0,0,.20);
+      border: 1px solid rgba(255,255,255,.08);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .result .pick{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .result .pick b{
+      font-size:14px;
+    }
+    .result .pick small{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.3;
+    }
+    .result .tag{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      white-space:nowrap;
+    }
+
+    /* Right panel list */
+    .side{
+      padding:18px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .box{
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius:16px;
+      padding:12px;
+    }
+    .box h2{
+      margin:0 0 10px 0;
+      font-size:14px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .list{
+      max-height:250px;
+      overflow:auto;
+      padding:8px;
+      border-radius:14px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.06);
+      font-size:13px;
+      line-height:1.55;
+    }
+    .pill{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:999px;
+      margin:4px;
+      background: rgba(124,92,255,.12);
+      border: 1px solid rgba(124,92,255,.22);
+      color: var(--text);
+    }
+    .row{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .row input, .row select{
+      width:100%;
+      border-radius:12px;
+      padding:10px 10px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      color: var(--text);
+      outline:none;
+      font-size:13px;
+    }
+    .row label{
+      font-size:12px;
+      color:var(--muted);
+      display:block;
+      margin-bottom:6px;
+    }
+
+    .footerNote{
+      margin-top:auto;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.5;
+      padding-top:6px;
+      border-top: 1px solid rgba(255,255,255,.08);
+    }
+
+    /* Confetti */
+    .confetti{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      overflow:hidden;
+      z-index:999;
+    }
+    .confetti i{
+      position:absolute;
+      top:-12px;
+      width:10px;
+      height:16px;
+      border-radius:3px;
+      opacity:.9;
+      animation: fall linear forwards;
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,.25));
+    }
+    @keyframes fall{
+      to{ transform: translateY(110vh) rotate(720deg); opacity:1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="panel">
+      <header>
+        <div class="title">
+          <h1>🎡 רולטת פרקים מסתובבת <span style="opacity:.85;">—</span> SpinChapters (SC)</h1>
+          <p>לוחצים “סובב”, ומה שיוצא — זה הפרק שעובדים עליו ✅</p>
+        </div>
+        <div class="badge" id="nowBadge">🕒 טוען תאריך…</div>
+      </header>
+
+      <div class="main">
+        <div class="wheelStage">
+          <div class="wheelBox">
+            <div class="pointer" aria-hidden="true"></div>
+            <canvas id="wheel" width="900" height="900" aria-label="רולטת פרקים"></canvas>
+            <div class="centerCap">
+              <div>
+                <strong id="centerTitle">מוכן לסיבוב</strong>
+                <span id="centerSub">בחר פרק באקראי 🎯</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="spinBtn">🎯 סובב רולטה</button>
+          <button class="secondary" id="spinHardBtn">⚡ סיבוב “חזק”</button>
+          <button class="ghost" id="shuffleBtn">🔁 ערבב סדר</button>
+          <button class="danger" id="resetBtn">🧹 אפס תוצאות</button>
+        </div>
+
+        <div class="result" id="resultBox">
+          <div class="pick">
+            <b id="pickedName">עדיין לא נבחר פרק</b>
+            <small id="pickedMeta">כשתסובב—השם יופיע כאן ✨</small>
+          </div>
+          <div class="tag" id="pickedIndex">#—</div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="side">
+        <div class="box">
+          <h2>🧩 הגדרות מהירות</h2>
+          <div class="row">
+            <div>
+              <label>🎚️ מהירות סיבוב</label>
+              <select id="speedSel">
+                <option value="normal" selected>רגיל</option>
+                <option value="fast">מהיר</option>
+                <option value="slow">איטי</option>
+              </select>
+            </div>
+            <div>
+              <label>🔊 צליל “קליק”</label>
+              <select id="soundSel">
+                <option value="on" selected>פעיל</option>
+                <option value="off">כבוי</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="box">
+          <h2>📚 כל הפרקים ברולטה</h2>
+          <div class="list" id="chaptersList"></div>
+        </div>
+
+        <div class="box">
+          <h2>🧾 היסטוריית תוצאות</h2>
+          <div class="list" id="historyList" style="max-height:190px;"></div>
+        </div>
+
+        <div class="footerNote">
+          🗓️ התאריך הלועזי והעברי מוצגים למעלה (בדפדפן).<br/>
+          💡 טיפ: אפשר “ערבב סדר” ואז לסובב שוב לקבלת תחושה חדשה.
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="confetti" id="confetti"></div>
+
+<script>
+(() => {
+  // ✅ הרשימה כפי שמופיעה בתמונה
+  const chapters = [
+    "אבידה","אהבה","אכילה","אלמן","אמונה","אמת","ארץ ישראל","בגדים","ברשה","בטחון","בית","בכייה","בנים",
+    "ברכה","בשורה","גאוה","גניבה וגזילה","דין","דעת","דרך","הוראה","הכנסת אורחים","המתקת דין","הצלחה","הרהורים","הריון",
+    "הרחקת רשעים","הריון","התבודדות","התשאות","ודי דברים","ותרן","זכות אבות","זכירה","זקנים","זריזות","חידושין",
+    "דאורייתא","חיתון","חלום","חן","חנפה","חקירה","טבע","טהרה","טלטול","יחום","יראה","ישועה","כבוד","כישוף","כעס",
+    "לימוד","ליצנות","לשון הרע","מוהל","ממון","מסור","מפורסם","מפלת","מריבה","משיח","משקה","נגינה","נדה","נהנה",
+    "מאחרים","ניאוף","ניבול פה","נסיון","נפילה","נר תמיד","סגולה","סד","ספירת העומר","ספר","עבירה","עונש","עזות",
+    "ענוה","עצבות","עצה","עצירות","עצלות","פוסק","פחד","פדיון שבויים","פרישות","צדיק","צדקה וקליפה","קללה","קנאה",
+    "קרי","קשיי לידה","ראיה","רחמנות","רפואה","שבועה","שבת","שוחד","שחט","שנאה","שכחות","שלום","שמחה","שרים",
+    "תוכחה","תפילה","תשובה"
+  ].filter(Boolean);
+
+  // --- DOM
+  const wheel = document.getElementById("wheel");
+  const ctx = wheel.getContext("2d");
+  const chaptersList = document.getElementById("chaptersList");
+  const historyList = document.getElementById("historyList");
+  const spinBtn = document.getElementById("spinBtn");
+  const spinHardBtn = document.getElementById("spinHardBtn");
+  const shuffleBtn = document.getElementById("shuffleBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const pickedName = document.getElementById("pickedName");
+  const pickedMeta = document.getElementById("pickedMeta");
+  const pickedIndex = document.getElementById("pickedIndex");
+  const centerTitle = document.getElementById("centerTitle");
+  const centerSub = document.getElementById("centerSub");
+  const nowBadge = document.getElementById("nowBadge");
+  const speedSel = document.getElementById("speedSel");
+  const soundSel = document.getElementById("soundSel");
+  const confetti = document.getElementById("confetti");
+
+  // --- State
+  let items = [...chapters];
+  let history = [];
+  let rotation = 0;           // radians
+  let spinning = false;
+  let lastTickIndex = -1;
+
+  // --- Date / Time (Gregorian + Hebrew via Intl)
+  function updateNowBadge(){
+    const now = new Date();
+    const greg = new Intl.DateTimeFormat("he-IL", {
+      year:"numeric", month:"2-digit", day:"2-digit",
+      hour:"2-digit", minute:"2-digit"
+    }).format(now);
+
+    const heb = new Intl.DateTimeFormat("he-IL-u-ca-hebrew", {
+      year:"numeric", month:"long", day:"numeric"
+    }).format(now);
+
+    nowBadge.textContent = `🕒 ${greg} | 📅 ${heb}`;
+  }
+  updateNowBadge();
+  setInterval(updateNowBadge, 30_000);
+
+  // --- Helpers
+  const TAU = Math.PI * 2;
+  const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
+  const rand = (a,b)=>a+Math.random()*(b-a);
+
+  // Simple click sound (no external files)
+  const audioCtx = (() => {
+    try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }
+  })();
+
+  function tick(){
+    if(soundSel.value === "off") return;
+    if(!audioCtx) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "square";
+    o.frequency.value = 1200;
+    g.gain.value = 0.05;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.02);
+  }
+
+  function renderLists(){
+    chaptersList.innerHTML = items.map(x => `<span class="pill">📌 ${escapeHtml(x)}</span>`).join("");
+    historyList.innerHTML = history.length
+      ? history.map((h,i)=>`<div style="padding:8px;border-bottom:1px solid rgba(255,255,255,.06)">
+            ✅ <b>${escapeHtml(h.name)}</b>
+            <div style="color:var(--muted);font-size:12px;margin-top:4px">
+              #${String(h.index).padStart(2,"0")} • ${escapeHtml(h.time)}
+            </div>
+          </div>`).join("")
+      : `<div style="color:var(--muted);padding:10px">אין עדיין תוצאות — סובב 🎯</div>`;
+  }
+
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  // --- Draw Wheel
+  function drawWheel(){
+    const W = wheel.width, H = wheel.height;
+    const cx = W/2, cy = H/2;
+    const rOuter = Math.min(W,H)*0.47;
+    const rInner = rOuter*0.20;
+
+    ctx.clearRect(0,0,W,H);
+
+    // outer glow ring
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.beginPath();
+    ctx.arc(0,0,rOuter*1.02,0,TAU);
+    ctx.strokeStyle = "rgba(255,255,255,.10)";
+    ctx.lineWidth = rOuter*0.06;
+    ctx.stroke();
+    ctx.restore();
+
+    const n = items.length;
+    const slice = TAU / n;
+
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(rotation);
+
+    for(let i=0;i<n;i++){
+      const a0 = i*slice;
+      const a1 = a0+slice;
+
+      // segment fill (alternating gradient vibe)
+      const hue = (i*360/n);
+      ctx.beginPath();
+      ctx.moveTo(0,0);
+      ctx.arc(0,0,rOuter,a0,a1);
+      ctx.closePath();
+
+      const g = ctx.createRadialGradient(0,0,rInner, 0,0,rOuter);
+      g.addColorStop(0, `hsla(${hue},85%,65%,.18)`);
+      g.addColorStop(0.55, `hsla(${(hue+40)%360},90%,55%,.35)`);
+      g.addColorStop(1, `hsla(${(hue+90)%360},95%,45%,.58)`);
+      ctx.fillStyle = g;
+      ctx.fill();
+
+      // separators
+      ctx.strokeStyle = "rgba(255,255,255,.10)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // text
+      const label = items[i];
+      ctx.save();
+      const mid = (a0+a1)/2;
+      ctx.rotate(mid);
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(255,255,255,.95)";
+      ctx.font = "600 24px system-ui, Arial";
+      const tx = rOuter*0.92;
+      ctx.translate(tx,0);
+
+      // shrink if long
+      const maxW = rOuter*0.62;
+      let fontSize = 24;
+      ctx.font = `700 ${fontSize}px system-ui, Arial`;
+      while(ctx.measureText(label).width > maxW && fontSize > 14){
+        fontSize -= 1;
+        ctx.font = `700 ${fontSize}px system-ui, Arial`;
+      }
+
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    }
+
+    // center circle
+    ctx.beginPath();
+    ctx.arc(0,0,rInner*1.55,0,TAU);
+    ctx.fillStyle = "rgba(0,0,0,.22)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,.12)";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // --- Winner calculation
+  function getWinnerIndex(){
+    const n = items.length;
+    const slice = TAU / n;
+
+    // Pointer is at TOP. Canvas 0 radians is to the right, clockwise positive after our rotation.
+    // We want the segment that lands at -90deg (top).
+    const pointerAngle = -Math.PI/2;
+
+    // Normalize wheel angle: when wheel rotates, labels rotate with it.
+    // Effective angle at pointer in wheel coordinates:
+    let a = (pointerAngle - rotation) % TAU;
+    if(a < 0) a += TAU;
+
+    const idx = Math.floor(a / slice);
+    return clamp(idx, 0, n-1);
+  }
+
+  function setResult(idx){
+    const name = items[idx];
+    const now = new Date();
+    const time = new Intl.DateTimeFormat("he-IL", {hour:"2-digit", minute:"2-digit", second:"2-digit"}).format(now);
+
+    pickedName.textContent = `🎯 יצא: ${name}`;
+    pickedMeta.textContent = `🧠 עכשיו עובדים על: “${name}” — בלי חפירות, ישר תוכן ✅`;
+    pickedIndex.textContent = `#${String(idx+1).padStart(2,"0")}/${items.length}`;
+
+    centerTitle.textContent = name;
+    centerSub.textContent = "זה הפרק של היום 🏁";
+
+    history.unshift({name, index: idx+1, time});
+    history = history.slice(0, 24);
+    renderLists();
+    burstConfetti();
+  }
+
+  // --- Spin engine (requestAnimationFrame)
+  function spin(power){
+    if(spinning || items.length < 2) return;
+    spinning = true;
+    lastTickIndex = -1;
+    spinBtn.disabled = true;
+    spinHardBtn.disabled = true;
+    shuffleBtn.disabled = true;
+
+    // speed presets
+    const preset = speedSel.value;
+    const durBase = preset === "slow" ? 5600 : preset === "fast" ? 3200 : 4200;
+    const duration = durBase + (power === "hard" ? 800 : 0);
+
+    // turns: more items -> more turns feels better
+    const turns = (power === "hard" ? rand(9, 13) : rand(6, 9));
+    const extra = rand(0, TAU);
+    const target = rotation + turns*TAU + extra;
+
+    const start = performance.now();
+    const r0 = rotation;
+
+    function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+
+    function frame(now){
+      const t = clamp((now - start) / duration, 0, 1);
+      rotation = r0 + (target - r0) * easeOutCubic(t);
+
+      // Tick sound when crossing segment boundaries
+      const idx = getWinnerIndex();
+      if(idx !== lastTickIndex){
+        lastTickIndex = idx;
+        tick();
+      }
+
+      drawWheel();
+
+      if(t < 1){
+        requestAnimationFrame(frame);
+      } else {
+        // snap tiny
+        rotation = target;
+        drawWheel();
+        const win = getWinnerIndex();
+        setResult(win);
+
+        spinning = false;
+        spinBtn.disabled = false;
+        spinHardBtn.disabled = false;
+        shuffleBtn.disabled = false;
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // --- Shuffle
+  function shuffle(){
+    if(spinning) return;
+    for(let i=items.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    centerTitle.textContent = "ערבוב בוצע";
+    centerSub.textContent = "סובב כדי לבחור 🎯";
+    drawWheel();
+    renderLists();
+  }
+
+  // --- Reset history
+  function resetHistory(){
+    history = [];
+    pickedName.textContent = "עדיין לא נבחר פרק";
+    pickedMeta.textContent = "כשתסובב—השם יופיע כאן ✨";
+    pickedIndex.textContent = "#—";
+    centerTitle.textContent = "מוכן לסיבוב";
+    centerSub.textContent = "בחר פרק באקראי 🎯";
+    renderLists();
+  }
+
+  // --- Confetti
+  function burstConfetti(){
+    confetti.innerHTML = "";
+    const count = 70;
+    for(let i=0;i<count;i++){
+      const el = document.createElement("i");
+      el.style.left = (Math.random()*100) + "vw";
+      el.style.animationDuration = rand(1.7, 3.2) + "s";
+      el.style.animationDelay = rand(0, .15) + "s";
+      el.style.transform = `translateY(0) rotate(${rand(0,360)}deg)`;
+      // no fixed colors requested — still needs visibility; use varied lightness
+      const hue = Math.floor(Math.random()*360);
+      el.style.background = `hsl(${hue} 90% 65%)`;
+      el.style.width = rand(7, 12) + "px";
+      el.style.height = rand(10, 18) + "px";
+      confetti.appendChild(el);
+    }
+    setTimeout(()=> confetti.innerHTML = "", 3400);
+  }
+
+  // --- Events
+  spinBtn.addEventListener("click", async () => {
+    if(audioCtx && audioCtx.state === "suspended") await audioCtx.resume();
+    spin("normal");
+  });
+  spinHardBtn.addEventListener("click", async () => {
+    if(audioCtx && audioCtx.state === "suspended") await audioCtx.resume();
+    spin("hard");
+  });
+  shuffleBtn.addEventListener("click", shuffle);
+  resetBtn.addEventListener("click", resetHistory);
+
+  // --- init
+  renderLists();
+  drawWheel();
+})();
+</script>
+</body>
+</html>
+```
+
+## 🧠 איך עובדים עם זה (מהיר)
+
+* 🖥️ שים את כל הקוד בקובץ אחד: `index.html`
+* ▶️ פתח בדפדפן
+* 🎯 לחץ “סובב רולטה” → ומה שיוצא זה הפרק שאתה עובד עליו ✅
+
+## 🎤 4 שורות ראפ (לפי העניין)
+
+סיבוב אחד, אמת נדלקת כמו אש ⚡
+פרק נבחר — עכשיו תן בראש, בלי להתבייש 💥
+מילה במידה, לב בכוונה — זה הסוד 🔥
+מה שיוצא ברולטה? הופך למציאות עוד! 🏁
+
+## 📜 משפט קודש לסיום
+
+"טוֹב מְעַט בְּצֶדֶק מֵרָב תְּבוּאוֹת בְּלֹא מִשְׁפָּט."
+
+📏 מספר המידות: 7
