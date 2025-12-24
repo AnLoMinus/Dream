@@ -241,6 +241,16 @@
       color: var(--text);
       white-space:nowrap;
     }
+    .badge.link{
+      text-decoration:none;
+      transition:opacity .15s ease;
+    }
+    .badge.link:hover{opacity:.9}
+    .sourceNote{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:6px;
+    }
 
     /* Right panel list */
     .side{
@@ -343,7 +353,11 @@
           <h1>🎡 רולטת פרקים מסתובבת <span style="opacity:.85;">—</span> SpinChapters (SC)</h1>
           <p>לוחצים “סובב”, ומה שיוצא — זה הפרק שעובדים עליו ✅</p>
         </div>
-        <div class="badge" id="nowBadge">🕒 טוען תאריך…</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+          <a class="badge link" href="changelog.html" target="_blank" rel="noopener">🗒️ יומן גרסאות</a>
+          <div class="badge" id="versionBadge">🔖 v1.1.0</div>
+          <div class="badge" id="nowBadge">🕒 טוען תאריך…</div>
+        </div>
       </header>
 
       <div class="main">
@@ -397,6 +411,16 @@
                 <option value="on" selected>פעיל</option>
                 <option value="off">כבוי</option>
               </select>
+            </div>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <div style="grid-column: 1 / span 2;">
+              <label>🗂️ מקור הנתונים למידות</label>
+              <select id="sourceSel">
+                <option value="csv" selected>קובץ מקומי (ברירת מחדל)</option>
+                <option value="wiki">מאגר מקוון (ויקיסורס)</option>
+              </select>
+              <div class="sourceNote" id="sourceNote">מקור נוכחי: קובץ מקומי</div>
             </div>
           </div>
         </div>
@@ -457,10 +481,18 @@
   const soundSel = document.getElementById("soundSel");
   const confetti = document.getElementById("confetti");
 
+  const sourceSel = document.getElementById("sourceSel");
+  const sourceNote = document.getElementById("sourceNote");
+
   const mediaWikiApi = "https://he.wikisource.org/w/api.php";
   const mediaWikiPage = "ספר המידות (ברסלב)";
   const csvFileName = "Sefer HaMiddot - he - merged.csv";
   const csvFileUrl = encodeURI(csvFileName);
+  const sourceLabels = {
+    csv: "קובץ מקומי",
+    wiki: "מאגר מקוון (ויקיסורס)",
+    fallback: "רשימת גיבוי"
+  };
 
   // --- State
   let items = [...fallbackChapters];
@@ -470,6 +502,7 @@
   let rotation = 0;           // radians
   let spinning = false;
   let lastTickIndex = -1;
+  let currentSource = "csv";
   syncMeasureIndex();
 
   // --- Date / Time (Gregorian + Hebrew via Intl)
@@ -497,6 +530,9 @@
   function syncMeasureIndex(){
     measureIndex = new Map(measuresData.map(m => [m.title, m]));
   }
+  function updateSourceNote(label){
+    sourceNote.textContent = `מקור נוכחי: ${label}`;
+  }
 
   // Simple click sound (no external files)
   const audioCtx = (() => {
@@ -517,11 +553,12 @@
   }
 
   function renderLists(){
+    const sourceLabel = sourceLabels[currentSource] || sourceLabels.fallback;
     chaptersList.innerHTML = items.map(name => {
       const measure = measureIndex.get(name);
       const quotesCount = measure?.quotes.length ?? 0;
       const label = quotesCount ? ` • ${quotesCount} משפטים` : " • ללא ציטוטים";
-      return `<span class="pill" title="נשלף מהויקיסורס">${escapeHtml(name)}${label}</span>`;
+      return `<span class="pill" title="מקור: ${sourceLabel}">${escapeHtml(name)}${label}</span>`;
     }).join("");
 
     historyList.innerHTML = history.length
@@ -701,27 +738,60 @@
     renderLists();
     centerTitle.textContent = "המידות נטענו מהקובץ ✔️";
     centerSub.textContent = "סובב לקבלת מידה + משפט מתוך ה-CSV";
+    currentSource = "csv";
+    updateSourceNote(sourceLabels.csv);
   }
 
   async function loadMeasuresFromWiki(){
     centerTitle.textContent = "טוען מידות מהויקיסורס…";
     centerSub.textContent = "מביא את הרשימה והמשפטים המדויקים";
+    const html = await fetchWikisourceHtml();
+    const parsed = extractMeasuresFromHtml(html);
+    if(!parsed.length) throw new Error("לא נמצאו מידות");
+    measuresData = parsed;
+    items = parsed.map(m => m.title);
+    syncMeasureIndex();
+    resetHistory();
+    drawWheel();
+    renderLists();
+    centerTitle.textContent = "המידות עודכנו מהמקור ✔️";
+    centerSub.textContent = "סובב לקבלת מידה + משפט מהויקיסורס";
+    currentSource = "wiki";
+    updateSourceNote(sourceLabels.wiki);
+  }
+
+  async function loadMeasuresBySource(source, allowFallback = true){
     try{
-      const html = await fetchWikisourceHtml();
-      const parsed = extractMeasuresFromHtml(html);
-      if(!parsed.length) throw new Error("לא נמצאו מידות");
-      measuresData = parsed;
-      items = parsed.map(m => m.title);
+      if(source === "wiki"){
+        await loadMeasuresFromWiki();
+      }else{
+        await loadMeasuresFromCsv();
+      }
+    }catch(err){
+      console.error(`Load from ${source} failed:`, err);
+      if(source === "wiki" && allowFallback){
+        centerTitle.textContent = "טעינת ויקיסורס נכשלה";
+        centerSub.textContent = "עובר לקובץ המקומי…";
+        await loadMeasuresBySource("csv", false);
+        return;
+      }
+      if(source === "csv" && allowFallback){
+        centerTitle.textContent = "קובץ מקומי לא נטען";
+        centerSub.textContent = "מנסה ויקיסורס…";
+        await loadMeasuresBySource("wiki", false);
+        return;
+      }
+
+      measuresData = fallbackChapters.map(title => ({ title, quotes: [] }));
+      items = [...fallbackChapters];
       syncMeasureIndex();
       resetHistory();
       drawWheel();
       renderLists();
-      centerTitle.textContent = "המידות עודכנו מהמקור ✔️";
-      centerSub.textContent = "סובב לקבלת מידה + משפט מהויקיסורס";
-    }catch(err){
-      console.error("Wiki load failed:", err);
-      centerTitle.textContent = "טעינת ויקיסורס נכשלה";
-      centerSub.textContent = "משתמשים ברשימת גיבוי — בדוק חיבור";
+      currentSource = "fallback";
+      centerTitle.textContent = "נעשה שימוש ברשימת גיבוי";
+      centerSub.textContent = "בדוק חיבור או קובץ חסר";
+      updateSourceNote(sourceLabels.fallback);
     }
   }
 
@@ -962,17 +1032,15 @@
   });
   shuffleBtn.addEventListener("click", shuffle);
   resetBtn.addEventListener("click", resetHistory);
+  sourceSel.addEventListener("change", async () => {
+    await loadMeasuresBySource(sourceSel.value, true);
+  });
 
   // --- init
   renderLists();
   drawWheel();
   (async () => {
-    try{
-      await loadMeasuresFromCsv();
-    }catch(err){
-      console.error("CSV load failed:", err);
-      await loadMeasuresFromWiki();
-    }
+    await loadMeasuresBySource(sourceSel.value, true);
   })();
 })();
 </script>
